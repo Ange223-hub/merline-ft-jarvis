@@ -2,26 +2,25 @@
 pytest
 pydantic
 
-# MLX & Whisper
-mlx>=0.11
-mlx-lm
-numba
-numpy
+# MLX Alternatives for Windows
 torch
-tqdm
-more-itertools
-tiktoken==0.3.3
-huggingface_hub
+transformers
+accelerate
+faster-whisper
+bitsandbytes
 scipy
+tqdm
+numpy
+huggingface_hub
 
 # MeloTTS
 g2p_en
 cached_path
+librosa
+torchaudio
 
 # Main
 pyaudio
-playsound
+playsound==1.2.2
 webrtcvad
 sounddevice
-librosa
-torchaudio
