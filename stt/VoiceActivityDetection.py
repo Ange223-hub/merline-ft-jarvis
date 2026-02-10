@@ -1,6 +1,5 @@
 import time
 import wave
-import pyaudio
 import webrtcvad
 import contextlib
 import collections
@@ -10,9 +9,16 @@ import sounddevice as sd
 RATE = 16000
 CHUNK = 160
 CHANNELS = 1
-FORMAT = pyaudio.paInt16
 
-audio = pyaudio.PyAudio()
+# Try to import pyaudio, fallback if not available
+try:
+    import pyaudio
+    PYAUDIO_AVAILABLE = True
+    FORMAT = pyaudio.paInt16
+except ImportError:
+    PYAUDIO_AVAILABLE = False
+    FORMAT = None
+    print("[VAD] PyAudio not available, using sounddevice fallback")
 
 
 class VADDetector:
@@ -20,10 +26,10 @@ class VADDetector:
         self.channels = [1]
         self.mapping = [c - 1 for c in self.channels]
         self.device_info = sd.query_devices(None, "input")
-        self.sample_rate = 16000  # int(self.device_info['default_samplerate'])
+        self.sample_rate = 16000
         self.interval_size = 10  # audio interval size in ms
-        self.sensitivity = sensitivity  # Seconds
-        self.block_size = self.sample_rate * self.interval_size / 1000
+        self.sensitivity = sensitivity
+        self.block_size = int(self.sample_rate * self.interval_size / 1000)
         self.vad = webrtcvad.Vad()
         self.vad.set_mode(3)
         self.frameHistory = [False]
@@ -31,6 +37,8 @@ class VADDetector:
         self.onSpeechStart = onSpeechStart
         self.onSpeechEnd = onSpeechEnd
         self.voiced_frames = collections.deque(maxlen=1000)
+        self.stream = None
+        print(f"[VAD] Detector initialized (sensitivity: {sensitivity})")
 
     def write_wave(self, path, audio, sample_rate):
         with contextlib.closing(wave.open(path, "w")) as wf:
@@ -40,10 +48,21 @@ class VADDetector:
             wf.writeframesraw(audio)
 
     def voice_activity_detection(self, audio_data):
-        return self.vad.is_speech(audio_data, self.sample_rate)
+        try:
+            return self.vad.is_speech(audio_data, self.sample_rate)
+        except Exception as e:
+            return False
 
-    def audio_callback(self, indata, frames, time, status):
-        audio_data = indata
+    def audio_callback(self, indata, frames, time_info, status):
+        if status:
+            pass  # Ignore status
+        
+        # Convert numpy array to bytes if needed
+        if isinstance(indata, np.ndarray):
+            audio_data = indata.astype(np.int16).tobytes()
+        else:
+            audio_data = indata
+        
         detection = self.voice_activity_detection(audio_data)
 
         if self.frameHistory[-1] == True and detection == True:
@@ -70,6 +89,15 @@ class VADDetector:
         self.frameHistory.append(detection)
 
     def startListening(self):
+        """Start listening using appropriate method"""
+        if PYAUDIO_AVAILABLE:
+            self._startListeningPyAudio()
+        else:
+            self._startListeningSoundDevice()
+    
+    def _startListeningPyAudio(self):
+        """Listen using PyAudio (if available)"""
+        audio = pyaudio.PyAudio()
         stream = audio.open(
             format=FORMAT,
             channels=CHANNELS,
@@ -85,6 +113,25 @@ class VADDetector:
             except Exception as e:
                 print(e)
                 break
+    
+    def _startListeningSoundDevice(self):
+        """Listen using SoundDevice (fallback)"""
+        print("[VAD] Using sounddevice for audio capture...")
+        
+        with sd.InputStream(
+            device=None,
+            channels=1,
+            samplerate=self.sample_rate,
+            blocksize=self.block_size,
+            callback=self.audio_callback,
+            dtype='int16'
+        ) as stream:
+            self.stream = stream
+            try:
+                while True:
+                    time.sleep(0.1)
+            except KeyboardInterrupt:
+                pass
 
 
 if __name__ == "__main__":

@@ -1,5 +1,8 @@
 import numba
+import os
 
+# Désactiver la compilation JIT pour éviter les problèmes de compilation
+os.environ['NUMBA_DISABLE_JIT'] = '1'
 
 @numba.jit(
     numba.void(
@@ -8,7 +11,7 @@ import numba
         numba.int32[::1],
         numba.int32[::1],
     ),
-    nopython=True,
+    nopython=False,
     nogil=True,
 )
 def maximum_path_jit(paths, values, t_ys, t_xs):

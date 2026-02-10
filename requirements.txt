@@ -6,7 +6,6 @@ pydantic
 torch
 transformers
 accelerate
-faster-whisper
 bitsandbytes
 scipy
 tqdm
@@ -20,7 +19,25 @@ librosa
 torchaudio
 
 # Main
-pyaudio
 playsound==1.2.2
 webrtcvad
 sounddevice
+
+# Web Interface
+flask
+flask-cors
+
+# Add openai-whisper for Whisper STT
+openai-whisper
+
+# Add faster-whisper for optimized STT
+faster-whisper
+ctranslate2
+
+# Optional dependencies for vision gesture control
+opencv-python
+mediapipe
+pycaw
+comtypes
+screen_brightness_control
+keyboard
